@@ -1,0 +1,57 @@
+#include <glib.h>
+#include <glib/gstdio.h>
+#include <signal.h>
+
+static void
+_shika_host_watch_pid (GPid     pid,
+					   gint     status,
+					   gpointer user_data)
+{
+
+
+	g_spawn_close_pid (pid);
+}
+
+
+int main(int argc, gchar ** argv)
+{
+	gboolean done = FALSE;
+	GError * error = NULL;
+
+	gint display = atoi(argv[1]);
+
+	g_autofree gchar * service_display = g_strdup_printf(":%d",display);
+
+	g_autofree gchar * service_address = 
+		g_strdup_printf("shika-host%d.socket",display);
+
+	g_autofree gchar * program_name = g_strdup(argv[2]);
+
+	const gchar * const
+    	service_argv[] = { 
+			"/usr/bin/broadwayd", 
+			service_display,
+			"-u",service_address, 
+			NULL };
+
+
+	GPid service_pid = 0;
+
+	if((done = g_spawn_async(NULL,(gchar**) service_argv,
+				       NULL,
+				       G_SPAWN_DO_NOT_REAP_CHILD,
+				       NULL,NULL, &service_pid, &error)))
+	{
+		g_child_watch_add(service_pid,_shika_host_watch_pid,NULL);
+		g_usleep(10000);
+		g_autofree gchar * client_commandline = 
+			g_strdup_printf("export GDK_BACKEND=broadway && export BROADWAY_DISPLAY=%s && %s",
+			service_display,
+			program_name);
+			
+ 		system(client_commandline);
+		kill(service_pid,SIGKILL);
+		if(g_file_test(service_address,G_FILE_TEST_EXISTS))
+			g_unlink(service_address);
+	}	
+}
