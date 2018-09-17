@@ -2614,7 +2614,7 @@ function connect()
 
     var loc = window.location.toString().replace("http:", "ws:").replace("https:", "wss:");
     loc = loc.substr(0, loc.lastIndexOf('/')) + "/socket";
-    ws = new WebSocket(loc);
+    ws = new WebSocket(loc,'broadway');
     ws.binaryType = "arraybuffer";
 
     ws.onopen = function() {
@@ -2622,7 +2622,10 @@ function connect()
     };
     ws.onclose = function() {
 	if (inputSocket != null)
-	    alert ("disconnected");
+	{
+		//alert ("disconnected");
+		window.location.reload(true);
+	}
 	inputSocket = null;
     };
     ws.onmessage = function(event) {

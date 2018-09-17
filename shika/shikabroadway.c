@@ -79,7 +79,8 @@ shika_broadway_is_running(ShikaBroadway * broadway)
 {
   gboolean result = 0;
   g_mutex_lock(&broadway->mutex);
-
+  ShikaBroadwayPrivate * priv = shika_broadway_get_instance_private(broadway);
+  result = priv->host_pid != 0;
   g_mutex_unlock(&broadway->mutex);
   return result;
 }
@@ -87,6 +88,7 @@ shika_broadway_is_running(ShikaBroadway * broadway)
 gboolean
 shika_broadway_run(ShikaBroadway * broadway,
 		   const gchar * program_path,
+		   const gchar * arguments,
 		   GError ** error)
 {
   gboolean done = 0;
@@ -100,6 +102,7 @@ shika_broadway_run(ShikaBroadway * broadway,
 	"./bin/shika-host",
 	host_display,
 	program_path,
+	arguments,
 	NULL };
 
   GPid service_pid = 0;

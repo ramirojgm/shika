@@ -15,5 +15,6 @@ C_DEPS :=
 SUBDIRS := \
 . \
 shika/http \
+shika/layout \
 shika \
 

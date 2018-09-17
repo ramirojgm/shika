@@ -8,6 +8,7 @@ RM := rm -rf
 
 # All of the sources participating in the build are defined here
 -include sources.mk
+-include shika/layout/subdir.mk
 -include shika/http/subdir.mk
 -include shika/subdir.mk
 -include subdir.mk

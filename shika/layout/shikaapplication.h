@@ -15,13 +15,13 @@
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <shika.h>
+#ifndef SHIKA_APPLICATION_H_
+#define SHIKA_APPLICATION_H_
 
-int
-main(int argc,char ** argv)
-{
-  shika_service_run(8080,200);
-  return 0;
-}
+gboolean	shika_application_layout(GSocketService * service,
+					  ShikaContext ** context,
+					  HttpRequest * request,
+					  GSocketConnection * connection,
+					  GError ** error);
 
-
+#endif /* SHIKA_APPLICATION_H_ */

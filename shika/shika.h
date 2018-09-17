@@ -22,9 +22,30 @@
 #include <glib-object.h>
 #include <gio/gio.h>
 
+#ifndef SHIKA_APPLICATION
+  #define SHIKA_APPLICATION "mono ./bin/HiQuS.exe"
+#endif
+
+#ifndef SHIKA_FILESYSTEM_ROOT
+  #define SHIKA_FILESYSTEM_ROOT (g_get_current_dir())
+#endif
+
+
 #include <http/httprequest.h>
 #include <http/httpresponse.h>
 
+#include <shikacontext.h>
 #include <shikabroadway.h>
+
+typedef gboolean (*ShikaLayoutFunc)(GSocketService * service,
+				    ShikaContext ** context,
+				    HttpRequest * request,
+				    GSocketConnection * connection,
+				    GError ** error);
+
+
+void		shika_register_layout(ShikaLayoutFunc * funct);
+
+void		shika_service_run(guint16 port,guint32 max_tail);
 
 #endif /* SHIKA_H_ */

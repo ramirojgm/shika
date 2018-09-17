@@ -42,6 +42,7 @@ gboolean		shika_broadway_is_running(ShikaBroadway * broadway);
 
 gboolean		shika_broadway_run(ShikaBroadway * broadway,
 					   const gchar * program_path,
+					   const gchar * arguments,
 					   GError ** error);
 
 gboolean		shika_broadway_redirect(ShikaBroadway * broadway,

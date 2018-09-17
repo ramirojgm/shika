@@ -15,13 +15,9 @@
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <shika.h>
-
-int
-main(int argc,char ** argv)
-{
-  shika_service_run(8080,200);
-  return 0;
-}
+#ifndef SHIKA_ERROR_H_
+#define SHIKA_ERROR_H_
 
 
+
+#endif /* SHIKA_ERROR_H_ */
