@@ -15,16 +15,40 @@
 	along with the this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <shika.h>
+#ifndef SHIKA_PIPE_H_
+#define SHIKA_PIPE_H_
 
-int
-main(int argc,char ** argv)
+#define SHIKA_TYPE_PIPE		(shika_pipe_get_type())
+G_DECLARE_FINAL_TYPE(ShikaPipe,shika_pipe,SHIKA,PIPE,GObject)
+
+typedef struct _ShikaPipePrivate ShikaPipePrivate;
+
+struct _ShikaPipeClass
 {
-  g_autoptr(ShikaHost) host = shika_host_new();
-  g_autoptr(ShikaHost) host2 = shika_host_new();
+  GObjectClass parent_class;
+};
 
-  shika_service_run(8080,200);
-  return 0;
-}
+struct _ShikaPipe
+{
+  GObject parent_instance;
 
+  ShikaPipePrivate * priv;
+};
 
+G_BEGIN_DECLS
+
+GType		shika_pipe_get_type(void) G_GNUC_CONST;
+
+ShikaPipe *	shika_pipe_new(void);
+
+void		shika_pipe_open(ShikaPipe * pipe,
+				GInputStream * input,
+				GOutputStream * output);
+
+gboolean	shika_pipe_is_open(ShikaPipe * pipe);
+
+void		shika_pipe_close(ShikaPipe * pipe);
+
+G_END_DECLS
+
+#endif /* SHIKA_PIPE_H_ */

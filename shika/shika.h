@@ -34,7 +34,10 @@
 #include <http/httprequest.h>
 #include <http/httpresponse.h>
 
+#include <shikapipe.h>
+
 #include <shikacontext.h>
+#include <shikahost.h>
 #include <shikabroadway.h>
 
 typedef gboolean (*ShikaLayoutFunc)(GSocketService * service,

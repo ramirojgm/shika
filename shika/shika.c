@@ -20,6 +20,10 @@
 #include <layout/shikasecurity.h>
 #include <layout/shikafilesystem.h>
 #include <layout/shikaapplication.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
 
 static gboolean
 _shika_request_run(GSocketService * service,
@@ -31,6 +35,13 @@ _shika_request_run(GSocketService * service,
 						    "/",
 						    1.1);
   g_autoptr(GError) error = NULL;
+
+  int flag = 1;
+
+  GSocket * socket = NULL;
+  socket = g_socket_connection_get_socket (connection);
+  setsockopt (g_socket_get_fd (socket), IPPROTO_TCP,
+              TCP_NODELAY, (char *) &flag, sizeof(int));
 
   GInputStream * input_stream =
       g_io_stream_get_input_stream(G_IO_STREAM(connection));
@@ -62,7 +73,6 @@ _shika_request_run(GSocketService * service,
       //TODO: Process error
     }
 
-  g_io_stream_close(G_IO_STREAM(connection),NULL,NULL);
   return TRUE;
 }
 

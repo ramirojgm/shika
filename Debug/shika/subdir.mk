@@ -6,17 +6,23 @@
 C_SRCS += \
 ../shika/shika.c \
 ../shika/shikabroadway.c \
-../shika/shikacontext.c 
+../shika/shikacontext.c \
+../shika/shikahost.c \
+../shika/shikapipe.c 
 
 OBJS += \
 ./shika/shika.o \
 ./shika/shikabroadway.o \
-./shika/shikacontext.o 
+./shika/shikacontext.o \
+./shika/shikahost.o \
+./shika/shikapipe.o 
 
 C_DEPS += \
 ./shika/shika.d \
 ./shika/shikabroadway.d \
-./shika/shikacontext.d 
+./shika/shikacontext.d \
+./shika/shikahost.d \
+./shika/shikapipe.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
