@@ -20,9 +20,6 @@
 int
 main(int argc,char ** argv)
 {
-  g_autoptr(ShikaHost) host = shika_host_new();
-  g_autoptr(ShikaHost) host2 = shika_host_new();
-
   shika_service_run(8080,200);
   return 0;
 }

@@ -78,7 +78,7 @@ shika_host_get_address(ShikaHost * host)
 }
 
 gboolean
-shika_host_is_busy(ShikaHost * host)
+shika_host_is_connected(ShikaHost * host)
 {
   return host->priv->remote != NULL;
 }
@@ -86,7 +86,7 @@ shika_host_is_busy(ShikaHost * host)
 gboolean
 shika_host_is_running(ShikaHost * host)
 {
-  return host->priv->client_pid != 0;
+  return host->priv->host_pid != 0;
 }
 
 static void
@@ -108,7 +108,7 @@ shika_host_pipe(ShikaHost * host,
 		GSocketConnection * remote,
 		GError ** error)
 {
-  g_return_val_if_fail(shika_host_is_busy(host) == FALSE,FALSE);
+  g_return_val_if_fail(shika_host_is_connected(host) == FALSE,FALSE);
   g_return_val_if_fail(shika_host_is_running(host),FALSE);
 
   gboolean done = FALSE;
@@ -118,7 +118,7 @@ shika_host_pipe(ShikaHost * host,
     				  G_SOCKET_TYPE_STREAM,
     				  G_SOCKET_PROTOCOL_DEFAULT,
     				  error)) != NULL;
-  if(done)
+  if((done = g_socket_connect(socket,host->priv->address,NULL,error)))
     {
       host->priv->local = g_socket_connection_factory_create_connection(socket);
       host->priv->remote = G_SOCKET_CONNECTION(g_object_ref(remote));
@@ -134,12 +134,12 @@ shika_host_pipe(ShikaHost * host,
       host->priv->remote_pipe = shika_pipe_new();
 
       g_signal_connect(host->priv->local_pipe,
-		       "close",
+		       "closed",
 		       G_CALLBACK(shika_host_on_pipe_close),
 		       host);
 
       g_signal_connect(host->priv->remote_pipe,
-      		       "close",
+      		       "closed",
       		       G_CALLBACK(shika_host_on_pipe_close),
       		       host);
 
@@ -157,16 +157,92 @@ shika_host_pipe(ShikaHost * host,
   return done;
 }
 
+static void
+_shika_host_watch_pid(GPid pid,
+		      gint status,
+		      gpointer user_data)
+{
+  ShikaHost * host = SHIKA_HOST(user_data);
+  shika_host_kill(host);
+}
+
 gboolean
 shika_host_run(ShikaHost * host,
 	       const gchar * program_path,
 	       const gchar * arguments,
 	       GError ** error)
-{}
+{
+  gboolean done = FALSE;
+
+  g_autofree gchar * host_display =
+      g_strdup_printf(":%d",host->priv->display);
+
+  g_autofree gchar * client_commandline =
+      g_strdup_printf("export GDK_BACKEND=broadway && export BROADWAY_DISPLAY=:%d && export GTK_THEME=Adwaita && %s %s",
+		      host->priv->display,
+		      program_path,
+		      arguments);
+
+  const gchar * host_address =
+      g_unix_socket_address_get_path(
+	  G_UNIX_SOCKET_ADDRESS(host->priv->address));
+
+  const gchar *
+  host_argv[] = {
+      "/usr/bin/broadwayd",
+      host_display,
+      "-u",host_address,
+      NULL
+  };
+
+  const gchar *
+  client_argv[] = {
+      "/bin/sh",
+      "-c",client_commandline,NULL
+  };
+
+
+  if((done = g_spawn_async(NULL, (gchar**)host_argv,
+				 NULL,
+				 G_SPAWN_DO_NOT_REAP_CHILD,
+				 NULL,NULL, &host->priv->host_pid, error)))
+    {
+      g_child_watch_add(host->priv->host_pid,_shika_host_watch_pid,host);
+      g_usleep(10000);
+      if((done = g_spawn_async(NULL, (gchar**)client_argv,
+			      NULL,
+			      G_SPAWN_DO_NOT_REAP_CHILD,
+			      NULL,
+			      NULL,
+			      &host->priv->client_pid,
+			      error)))
+	{
+	  g_child_watch_add(host->priv->client_pid,_shika_host_watch_pid,host);
+	  g_print("Done");
+	}
+    }
+  return done;
+}
 
 void
 shika_host_kill(ShikaHost * host)
-{}
+{
+  kill(host->priv->client_pid,SIGKILL);
+  kill(host->priv->host_pid,SIGKILL);
+
+  if(host->priv->local)
+    g_io_stream_close(G_IO_STREAM(host->priv->local),NULL,NULL);
+
+  g_clear_object(&host->priv->local_pipe);
+  g_clear_object(&host->priv->local);
+
+  if(host->priv->remote)
+    g_io_stream_close(G_IO_STREAM(host->priv->remote),NULL,NULL);
+
+  g_clear_object(&host->priv->remote_pipe);
+  g_clear_object(&host->priv->remote);
+
+}
 
 static void
 shika_host_dispose(GObject * object)

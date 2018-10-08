@@ -69,18 +69,23 @@ shika_pipe_callback (GObject *pollable_stream,
   ShikaPipe * pipe = SHIKA_PIPE(data);
   gchar buffer[1024] = {0,};
 
-  gsize read = g_pollable_input_stream_read_nonblocking (
+  g_autoptr(GError) error = NULL;
+
+  gssize read = g_pollable_input_stream_read_nonblocking (
       G_POLLABLE_INPUT_STREAM(pipe->priv->input),
       buffer,
       sizeof(buffer),
       NULL,
-      NULL
+      &error
   );
 
   if(read > 0)
-      g_output_stream_write_all(pipe->priv->output,buffer,read,NULL,NULL,NULL);
+    g_output_stream_write_all(pipe->priv->output,buffer,read,NULL,NULL,NULL);
+  else if (error)
+    g_print("Error: %s\n",error->message);
 
-  if(g_input_stream_is_closed(pipe->priv->input) ||
+  if(read == 0 ||
+     g_input_stream_is_closed(pipe->priv->input) ||
      g_output_stream_is_closed(pipe->priv->output))
     {
       g_idle_add(shika_pipe_close_idle,pipe);
@@ -113,6 +118,9 @@ shika_pipe_open(ShikaPipe * pipe,
 			(GSourceFunc)shika_pipe_callback,
 			pipe,
 			NULL);
+
+
+  g_source_attach (pipe->priv->source,NULL);
 }
 
 static void

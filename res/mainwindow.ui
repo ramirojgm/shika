@@ -974,16 +974,19 @@
                     </child>
                     <child>
                       <object class="GtkTreeViewColumn">
+                        <property name="resizable">True</property>
                         <property name="title" translatable="yes">column</property>
                       </object>
                     </child>
                     <child>
                       <object class="GtkTreeViewColumn">
+                        <property name="resizable">True</property>
                         <property name="title" translatable="yes">column</property>
                       </object>
                     </child>
                     <child>
                       <object class="GtkTreeViewColumn">
+                        <property name="resizable">True</property>
                         <property name="title" translatable="yes">column</property>
                       </object>
                     </child>

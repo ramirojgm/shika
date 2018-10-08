@@ -45,7 +45,7 @@ const GSocketAddress *
 
 guint		shika_host_get_display(ShikaHost * host);
 
-gboolean	shika_host_is_busy(ShikaHost * host);
+gboolean	shika_host_is_connected(ShikaHost * host);
 
 gboolean	shika_host_is_running(ShikaHost * host);
 

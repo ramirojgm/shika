@@ -18,6 +18,60 @@
 
 #include <shika.h>
 
+typedef struct
+{
+  GSocketService * service;
+  ShikaContext ** context;
+  HttpRequest * request;
+  GSocketConnection * connection;
+} ShikaRequestData;
+
+
+gboolean
+shika_request_idle(ShikaRequestData * data)
+{
+  g_autoptr(GError) error = NULL;
+  ShikaHost * host = NULL;
+  if(shika_context_is_set(*data->context,"viewport"))
+    {
+      host = (ShikaHost*)shika_context_get(*data->context,"viewport");
+    }
+  else
+    {
+      host = shika_host_new();
+      shika_context_set(*data->context,"viewport",host,g_object_unref);
+      shika_host_run(host,SHIKA_APPLICATION,"",&error);
+    }
+
+  if(shika_host_is_running(host))
+    {
+      shika_host_pipe(host,data->request,data->connection,&error);
+    }
+  else
+    {
+      shika_context_destroy(*data->context);
+      g_autoptr(HttpResponse) response = http_response_new(HTTP_RESPONSE_OK,1.1);
+	   GOutputStream * output = g_io_stream_get_output_stream(
+	       G_IO_STREAM(data->connection));
+
+      http_response_set_code(response,HTTP_RESPONSE_TEMPORARY_REDIRECT);
+      http_package_set_string(HTTP_PACKAGE(response),
+			      "Location","/login",-1);
+      http_package_write_to_stream(
+	  HTTP_PACKAGE(response),
+	  output,
+	  NULL,
+	  NULL,
+	  NULL);
+      g_output_stream_flush(output,NULL,NULL);
+    }
+
+  g_object_unref(data->service);
+  g_object_unref(data->request);
+  g_object_unref(data->connection);
+  g_free(data);
+  return G_SOURCE_REMOVE;
+}
 
 gboolean
 shika_application_layout(GSocketService * service,
@@ -26,52 +80,19 @@ shika_application_layout(GSocketService * service,
 			  GSocketConnection * connection,
 			  GError ** error)
 {
+
   if(http_package_is_set(HTTP_PACKAGE(request),"Upgrade"))
     {
       const gchar * upgrade_to = http_package_get_string(HTTP_PACKAGE(request),
 							 "Upgrade",NULL);
       if(g_strcmp0(upgrade_to,"websocket") == 0)
 	{
-	  ShikaBroadway * viewport = NULL;
-	  if(shika_context_is_set(*context,"viewport"))
-	    {
-	      viewport = (ShikaBroadway*)shika_context_get(*context,"viewport");
-	    }
-	  else
-	    {
-	      viewport = shika_broadway_new();
-	      shika_context_set(*context,"viewport",viewport,g_object_unref);
-	      shika_broadway_run(viewport,SHIKA_APPLICATION,"",error);
-	    }
-
-	  if(shika_broadway_is_running(viewport))
-	    {
-	      shika_broadway_redirect(viewport,
-				      request,
-				      G_IO_STREAM(connection),
-				      error);
-
-	      if(!shika_broadway_is_running(viewport))
-		shika_context_destroy(*context);
-	    }
-	  else
-	    {
-	      shika_context_destroy(*context);
-	      g_autoptr(HttpResponse) response = http_response_new(HTTP_RESPONSE_OK,1.1);
-	           GOutputStream * output = g_io_stream_get_output_stream(G_IO_STREAM(connection));
-
-	      http_response_set_code(response,HTTP_RESPONSE_TEMPORARY_REDIRECT);
-	      http_package_set_string(HTTP_PACKAGE(response),
-				      "Location","/login",-1);
-	      http_package_write_to_stream(
-		  HTTP_PACKAGE(response),
-		  output,
-		  NULL,
-		  NULL,
-		  NULL);
-	      g_output_stream_flush(output,NULL,NULL);
-	      return FALSE;
-	    }
+	  ShikaRequestData * data = g_new0(ShikaRequestData,1);
+	  data->service = g_object_ref(service);
+	  data->request = g_object_ref(request);
+	  data->connection = g_object_ref(connection);
+	  data->context = context;
+	  g_idle_add((GSourceFunc)shika_request_idle,data);
 	  return FALSE;
 	}
     }

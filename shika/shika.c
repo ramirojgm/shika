@@ -43,6 +43,8 @@ _shika_request_run(GSocketService * service,
   setsockopt (g_socket_get_fd (socket), IPPROTO_TCP,
               TCP_NODELAY, (char *) &flag, sizeof(int));
 
+  g_socket_set_keepalive(socket,TRUE);
+
   GInputStream * input_stream =
       g_io_stream_get_input_stream(G_IO_STREAM(connection));
 
