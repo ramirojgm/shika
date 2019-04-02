@@ -1,6 +1,5 @@
 #include <shika.h>
 
-
 struct _ShikaApplicationPrivate {
     GMutex mutex;
     SoupServer * server;
@@ -10,6 +9,7 @@ struct _ShikaApplicationPrivate {
 struct _ShikaApplicationContent
 {
     ShikaApplication * app;
+    goffset vpoffset;
     ShikaContent * content;
 };
 
@@ -22,7 +22,6 @@ shika_application_activate(GApplication * app)
 {
     ShikaApplication * self = SHIKA_APPLICATION(app);
     soup_server_listen_all (self->priv->server, 8080, 0, NULL);  
-
     GMainLoop * loop = g_main_loop_new(NULL,FALSE);
     g_main_loop_run(loop);
     g_main_loop_unref(loop); 
@@ -39,7 +38,7 @@ GApplication *
 shika_application_new()
 {
     return G_APPLICATION(g_object_new(SHIKA_TYPE_APPLICATION,
-        "application-id","org.gnome.shika",
+        "application-id","org.gnome.shika.http",
         "flags",G_APPLICATION_FLAGS_NONE,
         NULL
     ));
@@ -51,15 +50,35 @@ shika_application_content (SoupServer *server,
                             const char *path,
                             GHashTable *query,
                             SoupClientContext *client,
-                            gpointer user_data)
+                            gpointer data)
 {
-    g_print("File [ %s ]\n",path);
+    ShikaApplicationContent * content = (ShikaApplicationContent*) data;
+    const gchar * buffer = NULL;
+    const gchar * mime_type = NULL;
+    gsize length = 0;
+    
+    if (msg->method != SOUP_METHOD_GET) 
+    {
+		soup_message_set_status (msg, SOUP_STATUS_METHOD_NOT_ALLOWED);
+		return;
+	}
+	
+    if (shika_content_get(content->content,(content->vpoffset + path),&mime_type,&buffer,&length))
+    {
+        soup_message_set_status (msg, SOUP_STATUS_OK);
+        soup_message_set_response (msg, mime_type, SOUP_MEMORY_COPY,buffer, length);
+    }
+    else
+    {
+        soup_message_set_status (msg, SOUP_STATUS_NOT_FOUND);
+    }
 }
 
 static ShikaApplicationContent * 
-shika_application_content_new(ShikaApplication * app,ShikaContent * content)
+shika_application_content_new(ShikaApplication * app,goffset vpoffset,ShikaContent * content)
 {
     ShikaApplicationContent * _app = g_new0(ShikaApplicationContent,1);
+    _app->vpoffset = vpoffset;
     _app->app = g_object_ref(app);
     _app->content = g_object_ref(content);
     return _app;
@@ -81,7 +100,7 @@ shika_application_add_content(ShikaApplication * self,
     soup_server_add_handler (self->priv->server,
                              vpath,
                              shika_application_content,
-                             shika_application_content_new(self,content),
+                             shika_application_content_new(self,g_utf8_strlen(vpath,-1),content),
                              (GDestroyNotify)shika_application_content_free);
 }
 

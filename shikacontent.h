@@ -27,7 +27,11 @@ ShikaContent *  shika_content_new();
 
 void            shika_content_add_path (ShikaContent * sc, const gchar * path);
 
-gboolean        shika_content_get (ShikaContent * sc,const gchar * path, gchar ** buffer, gsize * length);
+gboolean        shika_content_get (ShikaContent * sc,
+                                    const gchar * path,
+                                    const gchar ** mime_type,
+                                    const gchar ** buffer, 
+                                    gsize * length);
 
 G_END_DECLS
 
