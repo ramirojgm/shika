@@ -83,21 +83,6 @@ shika_application_app_sock_destroy(gpointer data)
     return G_SOURCE_REMOVE;
 }
 
-typedef struct 
-{
-    SoupWebsocketConnection * con;
-    gchar * message;
-} ShikaApplicationMessage;
-
-static gboolean
-shika_application_app_sock_send_text(ShikaApplicationMessage * msg)
-{
-    soup_websocket_connection_send_text (msg->con,msg->message);
-    g_free(msg->message);
-    g_free(msg);
-    return G_SOURCE_REMOVE;
-}
-
 static void
 shika_application_app_sock_close(SoupWebsocketConnection *connection,
                                  gpointer data)
@@ -114,12 +99,8 @@ shika_application_app_sock_message (SoupWebsocketConnection *self,
                                     GBytes * message,
                                     gpointer user_data)
 {
-    g_print("Message: %s\n",g_bytes_get_data(message,NULL));
- 
-    ShikaApplicationMessage * msg = g_new0(ShikaApplicationMessage,1);
-    msg->con = self;
-    msg->message = g_strdup("Hello World");
-    g_idle_add(shika_application_app_sock_send_text,msg);
+    g_print("Message: %s\n",(gchar*)g_bytes_get_data(message,NULL));
+    soup_websocket_connection_send_text(self,(gchar*)g_bytes_get_data(message,NULL));
 }
 
 
