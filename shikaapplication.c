@@ -25,7 +25,7 @@ shika_application_activate(GApplication * app)
     soup_server_listen_all (self->priv->server, 8080, 0, NULL);  
     GMainLoop * loop = g_main_loop_new(NULL,FALSE);
     g_main_loop_run(loop);
-    g_main_loop_unref(loop); 
+    g_main_loop_unref(loop);
 }
 
 void 
@@ -83,6 +83,21 @@ shika_application_app_sock_destroy(gpointer data)
     return G_SOURCE_REMOVE;
 }
 
+typedef struct 
+{
+    SoupWebsocketConnection * con;
+    gchar * message;
+} ShikaApplicationMessage;
+
+static gboolean
+shika_application_app_sock_send_text(ShikaApplicationMessage * msg)
+{
+    soup_websocket_connection_send_text (msg->con,msg->message);
+    g_free(msg->message);
+    g_free(msg);
+    return G_SOURCE_REMOVE;
+}
+
 static void
 shika_application_app_sock_close(SoupWebsocketConnection *connection,
                                  gpointer data)
@@ -91,6 +106,22 @@ shika_application_app_sock_close(SoupWebsocketConnection *connection,
     app->priv->websockets = g_list_remove(app->priv->websockets,connection);    
     g_idle_add(shika_application_app_sock_destroy,connection);
 }
+
+
+void
+shika_application_app_sock_message (SoupWebsocketConnection *self,
+                                    gint type,
+                                    GBytes * message,
+                                    gpointer user_data)
+{
+    g_print("Message: %s\n",g_bytes_get_data(message,NULL));
+ 
+    ShikaApplicationMessage * msg = g_new0(ShikaApplicationMessage,1);
+    msg->con = self;
+    msg->message = g_strdup("Hello World");
+    g_idle_add(shika_application_app_sock_send_text,msg);
+}
+
 
 static void
 shika_application_app_sock_open (SoupServer *server,
@@ -105,6 +136,11 @@ shika_application_app_sock_open (SoupServer *server,
     g_signal_connect(connection,"closed",
         G_CALLBACK(shika_application_app_sock_close),
         app);
+
+    g_signal_connect(connection,"message",
+        G_CALLBACK(shika_application_app_sock_message),
+        app);
+
 
     g_print("path: %s\n",path);
     return;   
