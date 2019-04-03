@@ -104,12 +104,32 @@ shika_application_add_content(ShikaApplication * self,
                              (GDestroyNotify)shika_application_content_free);
 }
 
+gboolean
+shika_application_auth_cb (SoupAuthDomain *domain,
+                            SoupMessage *msg,
+                            const char *username,
+                            const char *password,
+                            gpointer user_data)
+{
+    //TODO Use authentication
+    return (g_strcmp0(username,"admin") == 0 && g_strcmp0(password,"Password1") == 0);
+}
+
 static void
 shika_application_init(ShikaApplication * self)
 {
     self->priv = shika_application_get_instance_private(self);
     self->priv->server = soup_server_new (SOUP_SERVER_SERVER_HEADER, "shika-httpd",
                                           NULL);
+    
+    SoupAuthDomain * domain = soup_auth_domain_basic_new(
+        SOUP_AUTH_DOMAIN_REALM,"Shika Application Streaming",
+        SOUP_AUTH_DOMAIN_ADD_PATH,"/",
+        NULL);
+        
+    soup_auth_domain_basic_set_auth_callback (domain,shika_application_auth_cb,self,NULL);
+    soup_server_add_auth_domain(self->priv->server, domain);
+    g_object_unref (domain);
 }
 
 
