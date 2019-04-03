@@ -3,6 +3,7 @@
 struct _ShikaApplicationPrivate {
     GMutex mutex;
     SoupServer * server;
+    GList *  websockets;
     gpointer padding[12];
 };
 
@@ -74,6 +75,41 @@ shika_application_content (SoupServer *server,
     }
 }
 
+static gboolean
+shika_application_app_sock_destroy(gpointer data)
+{
+    g_object_unref(data);
+    g_print("Destroyed\n");
+    return G_SOURCE_REMOVE;
+}
+
+static void
+shika_application_app_sock_close(SoupWebsocketConnection *connection,
+                                 gpointer data)
+{
+    ShikaApplication * app = SHIKA_APPLICATION(data);
+    app->priv->websockets = g_list_remove(app->priv->websockets,connection);    
+    g_idle_add(shika_application_app_sock_destroy,connection);
+}
+
+static void
+shika_application_app_sock_open (SoupServer *server,
+                                SoupWebsocketConnection *connection,
+                                const char *path,
+                                SoupClientContext *client,
+                                gpointer user_data)
+{
+    ShikaApplication * app = SHIKA_APPLICATION(user_data);
+    //Push connection 
+    app->priv->websockets = g_list_append(app->priv->websockets,g_object_ref(connection));
+    g_signal_connect(connection,"closed",
+        G_CALLBACK(shika_application_app_sock_close),
+        app);
+
+    g_print("path: %s\n",path);
+    return;   
+}
+
 static ShikaApplicationContent * 
 shika_application_content_new(ShikaApplication * app,goffset vpoffset,ShikaContent * content)
 {
@@ -121,12 +157,21 @@ shika_application_init(ShikaApplication * self)
     self->priv = shika_application_get_instance_private(self);
     self->priv->server = soup_server_new (SOUP_SERVER_SERVER_HEADER, "shika-httpd",
                                           NULL);
+    self->priv->websockets = NULL;
     
     SoupAuthDomain * domain = soup_auth_domain_basic_new(
         SOUP_AUTH_DOMAIN_REALM,"Shika Application Streaming",
         SOUP_AUTH_DOMAIN_ADD_PATH,"/",
         NULL);
         
+    soup_server_add_websocket_handler (self->priv->server,
+                                        "/app.sock",
+                                        NULL,
+                                        NULL,
+                                        shika_application_app_sock_open,
+                                        self,
+                                        NULL);
+                                        
     soup_auth_domain_basic_set_auth_callback (domain,shika_application_auth_cb,self,NULL);
     soup_server_add_auth_domain(self->priv->server, domain);
     g_object_unref (domain);
