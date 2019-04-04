@@ -62,7 +62,7 @@ shika_application_content (SoupServer *server,
     {
 		soup_message_set_status (msg, SOUP_STATUS_METHOD_NOT_ALLOWED);
 		return;
-	}
+    }
 	
     if (shika_content_get(content->content,(content->vpoffset + path),&mime_type,&buffer,&length))
     {
@@ -122,8 +122,6 @@ shika_application_app_sock_open (SoupServer *server,
         G_CALLBACK(shika_application_app_sock_message),
         app);
 
-
-    g_print("path: %s\n",path);
     return;   
 }
 
