@@ -10,7 +10,9 @@ shika_src = [
     'shikacontent.h',
     'shikacontent.c',
     'shikaapplication.h',
-    'shikaapplication.c'
+    'shikaapplication.c',
+    'shikainstance.h',
+    'shikainstance.c'
 ]
 
 executable('shika',shika_src,dependencies: [glib_deps, gio_deps, libsoup_deps ])

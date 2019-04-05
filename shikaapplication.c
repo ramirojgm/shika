@@ -1,7 +1,6 @@
 #include <shika.h>
 
 struct _ShikaApplicationPrivate {
-    GMutex mutex;
     SoupServer * server;
     GList *  websockets;
     gpointer padding[12];
@@ -79,7 +78,6 @@ static gboolean
 shika_application_app_sock_destroy(gpointer data)
 {
     g_object_unref(data);
-    g_print("Destroyed\n");
     return G_SOURCE_REMOVE;
 }
 
@@ -99,7 +97,6 @@ shika_application_app_sock_message (SoupWebsocketConnection *self,
                                     GBytes * message,
                                     gpointer user_data)
 {
-    g_print("Message: %s\n",(gchar*)g_bytes_get_data(message,NULL));
     soup_websocket_connection_send_text(self,(gchar*)g_bytes_get_data(message,NULL));
 }
 
@@ -111,17 +108,39 @@ shika_application_app_sock_open (SoupServer *server,
                                 SoupClientContext *client,
                                 gpointer user_data)
 {
+    static guint64 
+    app_id = 0;
+
     ShikaApplication * app = SHIKA_APPLICATION(user_data);
-    //Push connection 
-    app->priv->websockets = g_list_append(app->priv->websockets,g_object_ref(connection));
-    g_signal_connect(connection,"closed",
-        G_CALLBACK(shika_application_app_sock_close),
-        app);
+   
+    /* Startup instance */
+    ShikaLaunch * launch = shika_launch_new("gedit",NULL);
+    ShikaInstance * instance = shika_instance_new();
+    GError * error = NULL;
+    
+    shika_launch_add_env(launch,"GTK_THEME","Adwaita");
+    shika_launch_set_work_dir (launch,"/temp/shika-1");
+    shika_launch_set_ld_dir(launch,"/temp/shika-1");
+    
+    if (shika_instance_run (instance,launch,&error))
+    {
+        app_id ++;
+        //Push connection 
+        app->priv->websockets = g_list_append(app->priv->websockets,g_object_ref(connection));
+        g_object_set_data_full(G_OBJECT(connection),"instance",instance,(GDestroyNotify)g_object_unref);
+     
+        g_signal_connect(connection,"closed",
+            G_CALLBACK(shika_application_app_sock_close),
+            app);
 
-    g_signal_connect(connection,"message",
-        G_CALLBACK(shika_application_app_sock_message),
-        app);
+        g_signal_connect(connection,"message",
+            G_CALLBACK(shika_application_app_sock_message),
+            app);
 
+    }
+    
+    shika_launch_free (launch);
+        
     return;   
 }
 

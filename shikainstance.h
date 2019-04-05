@@ -21,7 +21,7 @@ struct _ShikaInstance
 
 struct _ShikaLaunch
 {
-    gchar ** env;
+    GArray * env;
     gchar * wk_dir;
     gchar * ld_dir;
     gchar * binary;

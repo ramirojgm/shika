@@ -7,6 +7,7 @@
 #include <libsoup/soup.h>
 
 #include <shikacontent.h>
+#include <shikainstance.h>
 #include <shikaapplication.h>
 
 #endif
