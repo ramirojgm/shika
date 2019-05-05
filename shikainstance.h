@@ -21,11 +21,11 @@ struct _ShikaInstance
 
 struct _ShikaLaunch
 {
-    GArray * env;
     gchar * wk_dir;
     gchar * ld_dir;
     gchar * binary;
     gchar * args;
+    GArray * env;
 };
 
 G_BEGIN_DECLS
@@ -57,8 +57,8 @@ const gchar *      shika_launch_get_binary(ShikaLaunch * launch);
 const gchar *      shika_launch_get_args (ShikaLaunch * launch);
 
 void               shika_launch_add_env(ShikaLaunch * launch, 
-                                            const gchar * name,
-                                            const gchar * value);
+					  const gchar * name,
+					  const gchar * value);
 
 const gchar **     shika_launch_get_env(ShikaLaunch * launch);
 

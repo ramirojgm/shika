@@ -90,7 +90,6 @@ shika_application_app_sock_close(SoupWebsocketConnection *connection,
     g_idle_add(shika_application_app_sock_destroy,connection);
 }
 
-
 void
 shika_application_app_sock_message (SoupWebsocketConnection *self,
                                     gint type,
@@ -99,6 +98,7 @@ shika_application_app_sock_message (SoupWebsocketConnection *self,
 {
     soup_websocket_connection_send_text(self,(gchar*)g_bytes_get_data(message,NULL));
 }
+
 
 
 static void
@@ -114,13 +114,13 @@ shika_application_app_sock_open (SoupServer *server,
     ShikaApplication * app = SHIKA_APPLICATION(user_data);
    
     /* Startup instance */
-    ShikaLaunch * launch = shika_launch_new("gedit",NULL);
+    ShikaLaunch * launch = shika_launch_new("/usr/bin/gedit",NULL);
     ShikaInstance * instance = shika_instance_new();
     GError * error = NULL;
     
     shika_launch_add_env(launch,"GTK_THEME","Adwaita");
-    shika_launch_set_work_dir (launch,"/temp/shika-1");
-    shika_launch_set_ld_dir(launch,"/temp/shika-1");
+    shika_launch_set_work_dir (launch,NULL);
+    shika_launch_set_ld_dir(launch,NULL);
     
     if (shika_instance_run (instance,launch,&error))
     {
@@ -128,7 +128,7 @@ shika_application_app_sock_open (SoupServer *server,
         //Push connection 
         app->priv->websockets = g_list_append(app->priv->websockets,g_object_ref(connection));
         g_object_set_data_full(G_OBJECT(connection),"instance",instance,(GDestroyNotify)g_object_unref);
-     
+
         g_signal_connect(connection,"closed",
             G_CALLBACK(shika_application_app_sock_close),
             app);
@@ -193,6 +193,8 @@ shika_application_init(ShikaApplication * self)
                                           NULL);
     self->priv->websockets = NULL;
     
+    //Check for socket directory exists
+
     SoupAuthDomain * domain = soup_auth_domain_basic_new(
         SOUP_AUTH_DOMAIN_REALM,"Shika Application Streaming",
         SOUP_AUTH_DOMAIN_ADD_PATH,"/",

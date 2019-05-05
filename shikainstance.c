@@ -1,10 +1,13 @@
 #include <shika.h>
+#include <sys/stat.h>
+#include <gio-unix-2.0/gio/gunixsocketaddress.h>
 
 struct _ShikaInstancePrivate {
     GPid application_pid;
     GPid broadway_pid;
         
-    GIOStream * stream;
+    SoupWebsocketConnection * websocket;
+    GSocketConnection * stream;
 };
 
 
@@ -40,11 +43,107 @@ shika_instance_get_stream (ShikaInstance * instance)
     return instance->priv->stream;
 }
 
+SoupWebsocketConnection *
+shika_instance_get_websocket (ShikaInstance * instance)
+{
+    return instance->priv->websocket;
+}
+
 gboolean        
 shika_instance_run (ShikaInstance * instance,
                     ShikaLaunch * launch, 
                     GError ** error)
-{}
+{
+  static volatile gchar * shika_temp_dir = NULL;
+  static volatile guint32 shika_instance_id = 0;
+  shika_instance_id ++;
+
+  gboolean done = FALSE;
+
+  if (shika_temp_dir == NULL)
+    {
+      shika_temp_dir = g_strdup_printf("/tmp/shika.%ux",
+				       (guint32)(&shika_instance_id));
+      mkdir((const gchar*)shika_temp_dir,S_IRWXU);
+    }
+
+  g_autofree gchar * shika_unix_path =
+      g_strdup_printf("shika_%x_child%u.socket",&shika_instance_id,
+		      shika_instance_id);
+
+  g_autofree gchar * shika_display =
+      g_strdup_printf(":%u",shika_instance_id);
+
+  const gchar * broadwayd_argv[] = {
+      "/usr/bin/broadwayd",
+      shika_display,
+      "-u",
+      shika_unix_path,
+      NULL};
+
+  if (g_spawn_async(NULL,
+		    (gchar**)broadwayd_argv,
+		    NULL,
+		    G_SPAWN_DEFAULT,
+		    NULL,
+		    NULL,
+		    &instance->priv->broadway_pid,
+		    error))
+    {
+      gchar **	app_argv = g_strsplit(launch->args," ",48);
+      guint	app_argc = g_strv_length(app_argv);
+
+      gchar ** 	app_full_argv = g_new0(gchar*,app_argc + 2);
+
+      app_full_argv[0] = g_strdup(launch->binary);
+
+      for (guint argv_index = 0; argv_index < app_argc; argv_index ++)
+	app_full_argv[argv_index + 1] = g_strdup(app_argv[argv_index]);
+
+      gchar ** env_envp = g_get_environ();
+      env_envp = g_environ_setenv(env_envp,
+				  "BROADWAY_DISPLAY",shika_display,
+				  TRUE);
+
+      env_envp = g_environ_setenv(env_envp,
+      				  "GDK_BACKEND","broadway",
+				  TRUE);
+      g_strfreev(app_argv);
+
+      if (g_spawn_async(launch->wk_dir,
+			app_full_argv,
+			env_envp,
+			G_SPAWN_DO_NOT_REAP_CHILD|G_SPAWN_FILE_AND_ARGV_ZERO,
+			NULL,
+			NULL,
+			&instance->priv->application_pid,
+			error))
+	{
+	  GSocketAddress * address = g_unix_socket_address_new (shika_unix_path);
+
+	  GSocket * socket = g_socket_new(G_SOCKET_FAMILY_UNIX,
+					  G_SOCKET_TYPE_STREAM,
+					  G_SOCKET_PROTOCOL_DEFAULT,
+					  error);
+
+	  if (g_socket_connect(socket,address,NULL,error))
+	    {
+	      instance->priv->stream =
+		  g_socket_connection_factory_create_connection(socket);
+	    }
+	  else
+	    {
+	      g_print("Kill:%s- %s\n",shika_unix_path, (*error)->message);
+	      //kill(instance->priv->broadway_pid,SIGKILL);
+	      //kill(instance->priv->application_pid,SIGKILL);
+	    }
+	}
+
+      g_strfreev(env_envp);
+      g_strfreev(app_full_argv);
+    }
+  return done;
+}
 
 gboolean        
 shika_instance_stop (ShikaInstance * instance)

@@ -15,4 +15,5 @@ shika_src = [
     'shikainstance.c'
 ]
 
-executable('shika',shika_src,dependencies: [glib_deps, gio_deps, libsoup_deps ])
+shika_bin = executable('shika',shika_src,dependencies: [glib_deps, gio_deps, libsoup_deps ],install: true)
+test('shika',shika_bin)
